@@ -15,7 +15,7 @@ class Search
 	#returns tweets based on search input
 	attr_reader :client, :search_terms, :time_limit, :rank, :no_of_tweets, :tweets
 
-	def initialize(search_terms, days, opts = {})
+	def initialize(search_terms, days)
 		@client = Twitter::REST::Client.new do |config|
 		  	config.consumer_key        = "t3F5fBiVwUjsZyzxAcpDWGHF4"
 		  	config.consumer_secret     = "YjEpZWx5xQYZ8RD82Dbgutd4m7kytoa3H3nvcppAVOy56LmhSe"
@@ -25,17 +25,13 @@ class Search
 
 	  	@search_terms = search_terms
 	  	@time_limit = days
-	  	@rank = opts[:rank]
-	  	@no_of_tweets = opts[:no_of_tweets]
-	 end
+	end
+	
+	def tweets
+	 	client.search("#{search_terms} AND since:#{time_limit.time_adjusted}").to_a
+	end
 
-	 def perform_search
-	 	puts time_limit.time_adjusted
-	 	@tweets = client.search("#{search_terms} AND since:#{time_limit.time_adjusted}").to_a
-	 	puts tweets[0].url
-	 end
 
- 	
 =begin
 		#get the time limit for 24 hours before the time of search and convert it to string 
 		yesterday_time = Time.now.utc - (60*60*24)
@@ -59,26 +55,72 @@ class Search
 		#puts todays_pixelart_tweets[0] || "No tweets found"
 end
 
-class TimeAdjust
-	#converts time to UTC date string
-	attr_reader :days, :utc_limit, :date_limit
+class TimeLimit
+	attr_reader :days, :utc_limit
 
 	def initialize(days)
 		@days = days	
 	end
 
-	def time_adjusted
-		@utc_limit = Time.now.utc - (60*60*24*@days)
-		@date_limit = @utc_limit.to_date.to_s
+	def time_adjusted 
+		utc_conversion.to_date.to_s
+	end
+
+	def utc_conversion
+		Time.now.utc - (60*60*24*@days)
 	end
 
 end
 
+class SortResults
+	attr_reader :tweets, :no_of_tweets
+
+	def initialize(tweets)
+		@tweets = tweets
+	end
+
+	def favorite_count
+		tweets.sort_by do |tweet|
+			tweet.favorite_count
+		end
+	end
+end
+
+class CropResults
+	attr_reader :tweets, :crop_number
+
+	def initialize(tweets, crop_number)
+		@tweets = tweets
+		@crop_number = crop_number
+	end
+
+	def crop
+		tweets[0..(crop_number-1)]
+	end
+
+end
+
+class DisplayResults
+	attr_reader :tweets
+
+	def initialize(tweets)
+		@tweets = tweets
+	end
+
+	def display_url
+		tweets.each do |tweet|
+			puts tweet.url
+		end
+	end
+end	
 
 
 
-search = Search.new("apocalyspe", TimeAdjust.new(1)) 
-search.perform_search
+tweets = Search.new("my_test_07102017", TimeLimit.new(days = 1)).tweets
+sorted_tweets = SortResults.new(tweets).favorite_count.reverse
+cropped_tweets = CropResults.new(sorted_tweets, 2).crop
+diplayed_results = DisplayResults.new(cropped_tweets).display_url
+
 
 
 
